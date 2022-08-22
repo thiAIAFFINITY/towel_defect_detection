@@ -1,0 +1,4 @@
+venv/
+cvat_input/
+.vscode/
+__pycache__/
