@@ -15,7 +15,7 @@ class LabelConsistent:
             product_id
             for product_id in os.listdir(self.root_dir)
             if os.path.isdir(self.root_dir + "/" + product_id)
-            and product_id.startswith(".") == False
+            and not product_id.startswith(".")
         ]
 
         return product_ids
@@ -105,7 +105,7 @@ class LabelConsistent:
             first_time = True
 
             while len(root_list) != 0:
-                cur_root = root_list.pop(0)
+                cur_root = root_list.pop(0).strip()
 
                 if not first_time:
                     cur_attrs.append(cur_root)
@@ -117,8 +117,17 @@ class LabelConsistent:
                         root_list.append(os.path.join(cur_root, attr))
             check = False
             if len(cur_attrs) < len(attr_logs):
-                print("Delete class:", product_id)
                 check = self._deleted_class(product_id, attr_logs, cur_attrs)
+                if not check:
+                    for id in product_ids:
+                        if id != product_id:
+                            self._create_class_for_each_product(id)
+                            break
+                    print("Delete data:", product_id)
+                    check = True
+                else:
+                    print("Delete class:", product_id)
+
             elif len(cur_attrs) == len(attr_logs):
                 if not self.is_create_new_product():
                     check = self._rename_class(product_id, attr_logs, cur_attrs)
@@ -133,21 +142,36 @@ class LabelConsistent:
             if check:
                 obj._create_update_logs_file()
 
-            
+    def _is_contain_data(self, os_loc):
+        for root, dir, file in os.walk(os_loc, topdown=True):
+            # print("ROOT:", root)
+            # print("DIR:", dir)
+            # print("FILE", file)
+            if len(file) > 0:
+                return True
+
+        return False
+
 
     def _deleted_class(self, product_id: str, prev_ver: list[str], cur_ver: list[str]) -> bool:
         product_ids = self._fetch_product_id()
 
         for attr_loc in prev_ver:
             if attr_loc not in cur_ver:
-
+                can_deleted = True
                 for del_product in product_ids:
-                    if del_product != product_id:
-                        del_loc = attr_loc.replace(product_id, del_product)
-                        # print(del_loc)
-                        shutil.rmtree(del_loc)
-                
-                return True
+                    if del_product != product_id and self._is_contain_data(attr_loc.replace(product_id, del_product)):
+                        can_deleted = False
+                        break
+
+                if can_deleted:
+                    for del_product in product_ids:
+                        if del_product != product_id:
+                            del_loc = attr_loc.replace(product_id, del_product)
+                            # print(del_loc)
+                            shutil.rmtree(del_loc)
+
+                return can_deleted
 
         return False
     
@@ -169,7 +193,7 @@ class LabelConsistent:
         if be_changed is None or changed_name is None:
             return False
             # print("Rename file error")
-        
+        print(be_changed, changed_name)
         for product_rename in product_ids:
             if product_rename != product_id:
                 try:
